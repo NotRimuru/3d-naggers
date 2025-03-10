@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { element, vec3 } from 'three/tsl';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.01, 100 );
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -16,37 +16,41 @@ let movementStatus = {
     s : false,
     a : false,
     d : false,
-    Space : false,
-    Control : false,
-    ArrowRight : false,
-    ArrowLeft : false
+    space : false,
+    arrowright : false,
+    arrowleft : false
 };
 
-const movementKeys = ['w', 's', 'a', 'd', 'Space', 'Control', 'ArrowRight', 'ArrowLeft'];
+const movementKeys = ['w', 's', 'a', 'd', 'space', 'arrowright', 'arrowleft'];
 
 window.onkeydown = (e) => {
+    const key = e.key.toLowerCase();
 
-    if(movementKeys.includes(e.key)){
-        movementStatus[e.key] = true;
+    if(movementKeys.includes(key)){
+        movementStatus[key] = true;
     }
-    else if(e.key == ' '){
-        movementStatus.Space = true;
+    else if(key == ' '){
+        movementStatus.space = true;
     }
-    else if(e.key == 'e'){
+    else if(key == 'e'){
         shoot();
     }
+    else if(key == 'g'){
+        createEnemy();
+    }
 
-    console.log(e.key)
+    console.log(key);
 
 };
 
 window.onkeyup = (e) => {
+    const key = e.key.toLowerCase();
 
-    if(movementKeys.includes(e.key)){
-        movementStatus[e.key] = false;
+    if(movementKeys.includes(key)){
+        movementStatus[key] = false;
     }
-    else if(e.key == ' '){
-        movementStatus.Space = false;
+    else if(key == ' '){
+        movementStatus.space = false;
     }
 
 }
@@ -54,7 +58,6 @@ window.onkeyup = (e) => {
 let jumpingTimeout = false;
 let jumping = false;
 let falling = false;
-
 function movement(){
     if(movementStatus.w == true){
         camera.translateZ(-0.01);
@@ -68,24 +71,24 @@ function movement(){
     if(movementStatus.a == true){
         camera.translateX(-0.01);
     }
-    if(movementStatus.ArrowRight == true){
-        camera.rotation.y -= 0.01;
+    if(movementStatus.arrowright == true){
+        camera.rotation.y -= 0.03;
     }
-    if(movementStatus.ArrowLeft == true){
-        camera.rotation.y += 0.01;
+    if(movementStatus.arrowleft == true){
+        camera.rotation.y += 0.03;
     }
 
-    if((jumping == true || movementStatus.Space == true) && jumpingTimeout == false){
+    if((jumping == true || movementStatus.space == true) && jumpingTimeout == false){
         jumping = true;
 
         if(camera.position.y < 1 && falling == false){
-            camera.position.y += 0.05;
+            camera.position.y += 0.1;
         }
         else if(camera.position.y >= 1 && falling == false){
             falling = true;
         }
         else if(camera.position.y > 0 && falling == true){
-            camera.position.y -= 0.05;
+            camera.position.y -= 0.03;
         }
         else{
             camera.position.y = 0;
@@ -95,40 +98,116 @@ function movement(){
     }
 }
 
-let bullets = [];
+let enemies = new Array();
+function createEnemy() {
+    const enemyGeometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+    const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const enemy = new THREE.Mesh( enemyGeometry, enemyMaterial );
+    scene.add( enemy );
+
+    enemy.position.x = Math.floor( (Math.random() * 6) - 3 );
+    enemy.position.z = Math.floor( (Math.random() * 6) - 3 );
+
+    enemies.push({
+        instance : enemy, 
+        health : 3, 
+        speed : 0.01,
+        cameraRotation : "y-only"
+    });
+}
+
+function spawnEnemies() {
+    setInterval(() => {
+        createEnemy();
+    }, 1000);
+}
+
+function enemyHandler() {
+    for(const enemy of enemies) {
+        
+        if( enemy.cameraRotation == "y-only" ) {
+            enemy.instance.rotation.y = Math.atan2( ( camera.position.x - enemy.instance.position.x ), ( camera.position.z - enemy.instance.position.z ) );
+        }
+        else if( enemy.cameraRotation == "non-restricted" ) {
+            enemy.instance.lookAt( camera.position );
+        }
+
+        enemy.instance.translateZ( enemy.speed );
+
+        const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
+        const cameraBB = new THREE.Box3().setFromObject( camera );
+        const collision = enemyBB.intersectsBox( cameraBB );
+
+        if( !collision )continue;
+
+        throw new Error("You Lost!");
+    }
+}
+
+let bullets = new Array();
+let shootTimeout = false;
 function shoot() {
+    if(shootTimeout)return;
+    shootTimeout = true;
+
     const bulletGeometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
     const bulletMaterial = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
     const bullet = new THREE.Mesh( bulletGeometry, bulletMaterial );
     scene.add( bullet );
 
-    bullet.position.x = camera.position.x;
-    bullet.position.z = camera.position.z;
-    bullet.position.y = camera.position.y - 0.1;
+    bullet.position.set( camera.position.x, camera.position.y - 0.1, camera.position.z );
+    bullet.rotation.set( camera.rotation.x, camera.rotation.y, camera.rotation.z );
     
-    bullet.rotation.x = camera.rotation.x;
-    bullet.rotation.y = camera.rotation.y;
-    bullet.rotation.z = camera.rotation.z;
-    
-    bullets.push({bullet : bullet, distance : 0});
+    bullets.push({
+        instance : bullet,
+        distance : 0, 
+        damage : 1, 
+        speed : 0.05 
+    });
+
+    setTimeout(() => {
+        shootTimeout = false;
+    }, 200);
+}
+
+function bulletHandler(){
+    for(const bullet of bullets) {
+        bullet.instance.translateZ(-bullet.speed);
+        bullet.distance += bullet.speed;
+
+        for(const enemy of enemies) {
+            const bulletBB = new THREE.Box3().setFromObject( bullet.instance );
+            const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
+            const collision = bulletBB.intersectsBox( enemyBB );
+
+            if( !collision )continue;
+
+            scene.remove( bullet.instance );
+            bullets.splice(bullets.indexOf( bullet ), 1);
+
+            enemy.health -= bullet.damage;
+            if( enemy.health > 0 )continue;
+
+            scene.remove( enemy.instance );
+            enemies.splice(enemies.indexOf( enemy ), 1);
+
+            break;
+        }
+
+        if( bullet && bullet.distance >= 10 ){
+            scene.remove( bullet.instance );
+            bullets.splice(bullets.indexOf( bullet ), 1);
+        }
+    }
 }
 
 function animate() {
 
     movement();
 
-    bullets.forEach((element) => {
-        if(element.distance > 10){
-            element.bullet.material.dispose();
-            element.bullet.geometry.dispose();
-            element.bullet.removeFromParent();
-            bullets.splice(bullets.indexOf(element), 1);
-        }
-        else{
-            element.bullet.translateZ(-0.02);
-            element.distance += 0.01;
-        }
-    });
+    bulletHandler();
+
+    enemyHandler();
     
 	renderer.render( scene, camera );
 }
