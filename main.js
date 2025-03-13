@@ -33,7 +33,7 @@ window.onkeydown = (e) => {
         movementStatus.space = true;
     }
     else if(key == 'e'){
-        shoot({ name : "player", instance : camera });
+        playerShoot();
     }
     else if(key == 'g'){
         createEnemy();
@@ -140,8 +140,6 @@ let enemies = new Array();
 function createEnemy() {
     const enemy = JSON.parse(JSON.stringify( enemyTypes[ Math.floor( Math.random() * enemyTypes.length )  ] ));
 
-    console.log(enemy)
-
     const enemyGeometry = new THREE.BoxGeometry( enemy.size, enemy.size, enemy.size );
     const enemyMaterial = new THREE.MeshBasicMaterial( enemy.color );
     const enemyInstance = new THREE.Mesh( enemyGeometry, enemyMaterial );
@@ -185,7 +183,7 @@ function enemyHandler() {
             }, 3000);
 
             if(enemy.name == "air"){
-                shoot({ name : "enemy", instance : enemy.instance });
+                enemyShoot( enemy );
             }
             else{
                 const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
@@ -200,94 +198,99 @@ function enemyHandler() {
 
 let bullets = new Array();
 let shootTimeout = false;
-function shoot(shooter) {
-    if( shootTimeout && shooter.name == "player" )return;
-    if( shooter.name == "player" ){
-        shootTimeout = true;
+function playerShoot() {
+    if( shootTimeout )return;
+    shootTimeout = true;
 
-        setTimeout(() => {
-            shootTimeout = false;
-        }, 200);
-    }
+    setTimeout(() => {
+        shootTimeout = false;
+    }, 200);
     
     const bulletGeometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-
-    let color;
-    if(shooter.name == "player"){
-        color = { color: 0xffff00 };
-    }
-    else{
-        color = { color: 0xff3355 };
-    }
-
-    const bulletMaterial = new THREE.MeshBasicMaterial( color );
+    const bulletMaterial = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
     const bullet = new THREE.Mesh( bulletGeometry, bulletMaterial );
     scene.add( bullet );
 
-    bullet.position.set( shooter.instance.position.x, shooter.instance.position.y - 0.1, shooter.instance.position.z );
-    bullet.rotation.set( shooter.instance.rotation.x, shooter.instance.rotation.y, shooter.instance.rotation.z );
+    bullet.position.set( camera.position.x, camera.position.y - 0.1, camera.position.z );
+    bullet.rotation.set( camera.rotation.x, camera.rotation.y, camera.rotation.z );
     
     bullets.push({
         instance : bullet,
         distance : 0, 
-        damage : 1, 
-        speed : 0.05,
-        origin : shooter
+        damage : 5, 
+        speed : 0.05
     });
 }
 
-function bulletHandler(){
-    for(const bullet of bullets) {
+let enemyBullets = new Array();
+function enemyShoot(enemy) {
+    const bulletGeometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
+    const bulletMaterial = new THREE.MeshBasicMaterial( { color: 0xff3399 } );
+    const bullet = new THREE.Mesh( bulletGeometry, bulletMaterial );
+    scene.add( bullet );
 
-        if(bullet.origin.name == "player"){
-            bullet.instance.translateZ(-bullet.speed);
-        }
-        else{
-            bullet.instance.translateZ(bullet.speed);
-        }
-        
-        bullet.distance += bullet.speed;
+    bullet.position.set( enemy.instance.position.x, enemy.instance.position.y - 0.1, enemy.instance.position.z );
+    bullet.rotation.set( enemy.instance.rotation.x, enemy.instance.rotation.y, enemy.instance.rotation.z );
+    
+    enemyBullets.push({
+        instance : bullet,
+        distance : 0, 
+        damage : 1, 
+        speed : 0.05
+    });
+}
 
-        if(bullet.origin.name == "player"){
-            for(const enemy of enemies) {
-                const bulletBB = new THREE.Box3().setFromObject( bullet.instance );
-                const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
-                const collision = bulletBB.intersectsBox( enemyBB );
-    
-                if( !collision )continue;
-    
-                scene.remove( bullet.instance );
-                bullets.splice(bullets.indexOf( bullet ), 1);
-    
-                enemy.health -= bullet.damage;
-                console.log(enemy.health);
-                if( enemy.health > 0 )continue;
-    
-                scene.remove( enemy.instance );
-                enemies.splice(enemies.indexOf( enemy ), 1);
-    
-                break;
-            }   
-        }
-        else{
-            const bulletBB = new THREE.Box3().setFromObject( bullet.instance );
-            const playerBB = new THREE.Box3().setFromObject( camera );
-            const collision = bulletBB.intersectsBox( playerBB );
+function playerBulletHandler(bullet){
+    bullet.instance.translateZ(-bullet.speed);
+    bullet.distance += bullet.speed;
 
-            if( collision ){
-                scene.remove( bullet.instance );
-                bullets.splice(bullets.indexOf( bullet ), 1);
-    
-                // player.health -= bullet.damage;
+    for(const enemy of enemies) {
+        const bulletBB = new THREE.Box3().setFromObject( bullet.instance );
+        const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
+        const collision = bulletBB.intersectsBox( enemyBB );
 
-                console.log("you got hit!!")
-            }
-        }
+        if( !collision )continue;
 
-        if( bullet.distance >= 10 ){
-            scene.remove( bullet.instance );
-            bullets.splice( bullets.indexOf( bullet ), 1 );
-        }
+        scene.remove( bullet.instance );
+        bullets.splice(bullets.indexOf( bullet ), 1);
+
+        enemy.health -= bullet.damage;
+        if( enemy.health > 0 )continue;
+
+        scene.remove( enemy.instance );
+        enemies.splice(enemies.indexOf( enemy ), 1);
+
+        break;
+    }   
+
+    if( bullet.distance >= 10 ){
+        scene.remove( bullet.instance );
+        bullets.splice( bullets.indexOf( bullet ), 1 );
+    }
+}
+
+function enemyBulletHandler(bullet){
+    bullet.instance.translateZ(bullet.speed);
+    bullet.distance += bullet.speed;
+
+    const bulletBB = new THREE.Box3().setFromObject( bullet.instance );
+    const playerBB = new THREE.Box3().setFromObject( camera );
+    const collision = bulletBB.intersectsBox( playerBB );
+
+    if( collision ) {
+
+        scene.remove( bullet.instance );
+        enemyBullets.splice( enemyBullets.indexOf( bullet ), 1);
+
+        // player.health -= bullet.damage;
+        // if( player.health <= 0 ) {
+        //     alert("you lost!");
+        // }
+    }
+            
+    if( bullet.distance >= 10 ){
+        bullet.instance.removeFromParent();
+        enemyBullets.splice( enemyBullets.indexOf( bullet ), 1 );
     }
 }
 
@@ -295,7 +298,12 @@ function animate() {
 
     movement();
 
-    bulletHandler();
+    for(const bullet of bullets){
+        playerBulletHandler(bullet);
+    }
+    for(const bullet of enemyBullets){
+        enemyBulletHandler(bullet);
+    }
 
     enemyHandler();
     
