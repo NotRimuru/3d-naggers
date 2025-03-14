@@ -1,0 +1,12 @@
+.health-bar{
+    height: 5lvh;
+    width: 50lvw;
+
+    background-color: white;
+
+    position: absolute;
+    top: 90;
+    left: 50;
+
+    transform: translateX(-50%) translateY(-50%);
+}
