@@ -2,15 +2,28 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>Unnamed rouge-like</title>
+		<title>Unnamed shooternpx http-server</title>
 		<style>
 			body { margin: 0; background-color: #111; }
 		</style>
-
 		<link rel = "stylesheet" href="main.css">
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://unpkg.com/three@0.174.0/build/three.module.js",
+					"three/addons/": "https://unpkg.com/three@0.174.0/examples/jsm/"
+				}
+			}
+		  </script>
 	</head>
 	<body>
-		<script type="module" src="/main.js"></script>
+		<div id = "healthbar">
+			<div id = "health"></div>
+		</div>
 
+		<div id = "crosshair"></div>
+
+		<script type="module" src="main.js"></script>
 	</body>
 </html>

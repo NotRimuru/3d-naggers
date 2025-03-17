@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { element, instance, vec3 } from 'three/tsl';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.02, 30 );
@@ -20,6 +19,7 @@ let player = {
     instance : camera,
     hitbox : playerHitbox,
     health : 10,
+    maxhealth: 10,
     stamina : 100,
     shootTimeout : false,
     bullet : {
@@ -96,41 +96,57 @@ window.onresize = () => {
     camera.updateProjectionMatrix();
 }
 
-let jumpingTimeout = false;
-let jumping = false;
-let falling = false;
-
 var clock = new THREE.Clock();
 var delta = 0;
 var jump_can = 1;
 let velocity_y = 0;
 
+const movementHelper = new THREE.Mesh(new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+movementHelper.position.set( camera.position.x, camera.position.y, camera.position.z )
+
 function movement() {
     delta = clock.getDelta();
 
-    if( keyboard["w"] == true ) camera.translateZ( -0.01 );
-    if( keyboard["s"] == true ) camera.translateZ( 0.01 );
-    if( keyboard["d"] == true ) camera.translateX( 0.01 );
-    if( keyboard["a"] == true ) camera.translateX( -0.01 );
-    if( keyboard["arrowleft"] == true ) camera.rotateY( 0.03 );
-    if( keyboard["arrowright"] == true ) camera.rotateY( -0.03 );
+    movementHelper.attach( camera );
+
+    if( keyboard["w"] == true ) movementHelper.translateZ( -0.01 );
+    if( keyboard["s"] == true ) movementHelper.translateZ( 0.01 );
+    if( keyboard["d"] == true ) movementHelper.translateX( 0.01 );
+    if( keyboard["a"] == true ) movementHelper.translateX( -0.01 );
+    if( keyboard["arrowleft"] == true ) movementHelper.rotateY( 0.03 );
+    if( keyboard["arrowright"] == true ) movementHelper.rotateY( -0.03 );
     if( keyboard["arrowup"] == true ) camera.rotateX( 0.03 );
     if( keyboard["arrowdown"] == true ) camera.rotateX( -0.03 );
     if ( keyboard[" "] && jump_can == 1 ) {
         jump_can = 0;
         velocity_y = 7;
     }
+    if( keyboard["f"] )
 
     if ( jump_can == 0 ) {
-        camera.position.y += velocity_y * delta;
+        movementHelper.position.y += velocity_y * delta;
 
         velocity_y -= 9.8 * 2 * delta;
-        if (camera.position.y <= 0) {
+        if (movementHelper.position.y <= 0) {
             jump_can = 1;
             velocity_y = 0;
-            camera.position.y = 0;
+            movementHelper.position.y = 0;
         }
     }
+
+    if ( jump_can == 0 ) {
+        movementHelper.position.y += velocity_y * delta;
+
+        velocity_y -= 9.8 * 2 * delta;
+        if (movementHelper.position.y <= 0) {
+            jump_can = 1;
+            velocity_y = 0;
+            movementHelper.position.y = 0;
+        }
+    }
+
+    scene.attach( camera );
+
 }
 
 let enemies = new Array();
@@ -281,6 +297,13 @@ function enemyBulletHandler( bullet ) {
     if( bullet.distance >= 20 ) deleteEntity( bullet, enemyBullets );
 }
 
+function updateHealth() {
+
+    const health = document.getElementById("health");
+    health.style.width = `${player.health * 100 / player.maxhealth}%`;
+
+}
+
 function animate() {
     
     if( keyboard["e"] == true ) shoot( player );
@@ -291,6 +314,8 @@ function animate() {
     for(const bullet of enemyBullets) enemyBulletHandler(bullet);
 
     enemyHandler();
+
+    updateHealth();
     
 	renderer.render( scene, camera );
 }

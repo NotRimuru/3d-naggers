@@ -1,12 +1,30 @@
-.health-bar{
-    height: 5lvh;
-    width: 50lvw;
+#healthbar{
+    height: 3lvh;
+    width: 20lvw;
+
+    position: absolute;
+    top: 10%;
+    left: 20%;
+
+    transform: translateX(-50%) translateY(-50%);
+}
+
+#health{
+    width: inherit;
+    height: inherit;
+
+    background-color: #00ff00;
+}
+
+#crosshair {
+    height: 1lvh;
+    aspect-ratio: 1;
 
     background-color: white;
 
     position: absolute;
-    top: 90;
-    left: 50;
+    top: 50%;
+    left: 50%;
 
     transform: translateX(-50%) translateY(-50%);
 }
