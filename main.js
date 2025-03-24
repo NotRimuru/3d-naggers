@@ -8,6 +8,13 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
+const groundGeomatry = new THREE.PlaneGeometry( 1000, 1000 );
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+const ground = new THREE.Mesh( groundGeomatry, groundMaterial );
+scene.add( ground );
+ground.rotation.x = -90 * ( Math.PI / 180 );
+ground.position.y = -0.5
+
 const playerGeometry = new THREE.BoxGeometry( .3, .3, .3 );
 const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent : true, opacity : 0 });
 const playerHitbox = new THREE.Mesh( playerGeometry, playerMaterial );
@@ -34,7 +41,7 @@ const enemyTypes = [
         name : "tank",
         instance : null,
         health : 5, 
-        speed : 0.01,
+        speed : 1,
         cameraRotation : "y-only",
         movement : "only-horizontal",
         attackType : "melee",
@@ -47,7 +54,7 @@ const enemyTypes = [
         name : "speedy",
         instance : null,
         health : 1, 
-        speed : 0.03,
+        speed : 3,
         cameraRotation : "y-only",
         movement : "only-horizontal",
         attackType : "melee",
@@ -60,7 +67,7 @@ const enemyTypes = [
         name : "air",
         instance : null,
         health : 2, 
-        speed : 0.02,
+        speed : 2,
         cameraRotation : "non-restricted",
         movement : "only-horizontal",
         attackType : "shooting",
@@ -96,52 +103,76 @@ window.onresize = () => {
     camera.updateProjectionMatrix();
 }
 
-var clock = new THREE.Clock();
-var delta = 0;
-var jump_can = 1;
-let velocity_y = 0;
+const clock = new THREE.Clock();
+let delta = 0;
+let jump = false;
+let jumpVelocity = 0;
+
+let dash = false;
+let dashVelocity = 0;
+let dashCooldown = false;
 
 const movementHelper = new THREE.Mesh(new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
 movementHelper.position.set( camera.position.x, camera.position.y, camera.position.z )
 
 function movement() {
-    delta = clock.getDelta();
-
     movementHelper.attach( camera );
 
-    if( keyboard["w"] == true ) movementHelper.translateZ( -0.01 );
-    if( keyboard["s"] == true ) movementHelper.translateZ( 0.01 );
-    if( keyboard["d"] == true ) movementHelper.translateX( 0.01 );
-    if( keyboard["a"] == true ) movementHelper.translateX( -0.01 );
-    if( keyboard["arrowleft"] == true ) movementHelper.rotateY( 0.03 );
-    if( keyboard["arrowright"] == true ) movementHelper.rotateY( -0.03 );
-    if( keyboard["arrowup"] == true ) camera.rotateX( 0.03 );
-    if( keyboard["arrowdown"] == true ) camera.rotateX( -0.03 );
-    if ( keyboard[" "] && jump_can == 1 ) {
-        jump_can = 0;
-        velocity_y = 7;
+    if( keyboard["w"] ) movementHelper.translateZ( -1 * delta );
+    if( keyboard["s"] ) movementHelper.translateZ( 1 * delta );
+    if( keyboard["d"] ) movementHelper.translateX( 1 * delta );
+    if( keyboard["a"] ) movementHelper.translateX( -1 * delta );
+    if( keyboard["arrowleft"] ) movementHelper.rotateY( 3 * delta );
+    if( keyboard["arrowright"] ) movementHelper.rotateY( -3 * delta );
+    if( keyboard["arrowup"] ) camera.rotateX( 3 * delta );
+    if( keyboard["arrowdown"] ) camera.rotateX( -3 * delta );
+    if ( keyboard[" "] && jump == false ) {
+        jump = true;
+        jumpVelocity = 7;
     }
-    if( keyboard["f"] )
+    if( keyboard["f"] && dash == false && dashCooldown == false) {
+        dash = true;
+        dashVelocity = 7;
+        dashCooldown = true;
+    }
 
-    if ( jump_can == 0 ) {
-        movementHelper.position.y += velocity_y * delta;
+    if ( jump == true ) {
+        movementHelper.position.y += jumpVelocity * delta;
 
-        velocity_y -= 9.8 * 2 * delta;
+        jumpVelocity -= 9.8 * 2 * delta;
         if (movementHelper.position.y <= 0) {
-            jump_can = 1;
-            velocity_y = 0;
+            jump = false;
+            jumpVelocity = 0;
             movementHelper.position.y = 0;
         }
     }
 
-    if ( jump_can == 0 ) {
-        movementHelper.position.y += velocity_y * delta;
+    if ( dash ) {
+        if( keyboard["w"] ) movementHelper.translateZ( -dashVelocity * delta );
+        if( keyboard["s"] ) movementHelper.translateZ( dashVelocity * delta );
+        if( keyboard["d"] ) movementHelper.translateX( dashVelocity * delta );
+        if( keyboard["a"] ) movementHelper.translateX( -dashVelocity * delta );
 
-        velocity_y -= 9.8 * 2 * delta;
-        if (movementHelper.position.y <= 0) {
-            jump_can = 1;
-            velocity_y = 0;
-            movementHelper.position.y = 0;
+        dashVelocity -= 9.8 * 2 * delta;
+        if ( dashVelocity <= 0 ) { 
+            dash = false;
+
+            let countdown = 5;
+            const dashDiv = document.getElementById( "dash" );
+            dashDiv.innerHTML = `${countdown}`;
+            const countdownInterval = setInterval( () => {
+                countdown --;
+                dashDiv.innerHTML = `${countdown}`;
+            }, 1000)
+
+            setTimeout( () => {
+                dashCooldown = false;
+                clearInterval( countdownInterval );
+
+                dashDiv.innerHTML = "Dash";
+            }, 5000 );
+
+            
         }
     }
 
@@ -181,7 +212,7 @@ function enemyHandler() {
         enemy.instance.rotation.set( 0, 0, 0 );
         enemy.instance.rotation.y = Math.atan2( ( camera.position.x - enemy.instance.position.x ), ( camera.position.z - enemy.instance.position.z ) );
 
-        if( enemy.instance.position.distanceTo( camera.position ) > 3 || enemy.name != "air" ) enemy.instance.translateZ( enemy.speed );
+        if( enemy.instance.position.distanceTo( camera.position ) > 3 || enemy.name != "air" ) enemy.instance.translateZ( enemy.speed * delta );
 
         if( enemy.cameraRotation == "non-restricted" ) enemy.instance.lookAt( camera.position );
 
@@ -240,7 +271,7 @@ function shoot( shooter ) {
         instance : createBullet( shooter.bullet.size , shooter.bullet.color, shooter.bullet.yOffset, shooter.instance ),
         distance : 0, 
         damage : 1, 
-        speed : 0.05
+        speed : 5
     });
 }
 
@@ -251,19 +282,17 @@ function deleteEntity( entity, arr ) {
 }
 
 function detectCollision( entity1, entity2 ) {
-
     const entity1BB = new THREE.Box3().setFromObject( entity1 );
     const entity2BB = new THREE.Box3().setFromObject( entity2 );
     return entity1BB.intersectsBox( entity2BB );
 }
 
-function playerBulletHandler(bullet){
-
-    bullet.instance.translateZ(-bullet.speed);
-    bullet.distance += bullet.speed;
+function playerBulletHandler( bullet ) {
+    bullet.instance.translateZ( -bullet.speed * delta );
+    bullet.distance += bullet.speed * delta;
 
     for( const enemy of enemies ) {
-        if( !detectCollision( bullet.instance, enemy.instance ) )continue;
+        if( !detectCollision( bullet.instance, enemy.instance ) && !detectCollision( bullet.instance, ground ) )continue;
 
         deleteEntity( bullet, playerBullets );
 
@@ -279,8 +308,8 @@ function playerBulletHandler(bullet){
 }
 
 function enemyBulletHandler( bullet ) {
-    bullet.instance.translateZ( bullet.speed );
-    bullet.distance += bullet.speed;
+    bullet.instance.translateZ( bullet.speed * delta );
+    bullet.distance += bullet.speed * delta;
         
     if( detectCollision( bullet.instance, player.hitbox ) ){
         deleteEntity( bullet, enemyBullets );
@@ -305,7 +334,8 @@ function updateHealth() {
 }
 
 function animate() {
-    
+    delta = clock.getDelta();
+
     if( keyboard["e"] == true ) shoot( player );
 
     movement();

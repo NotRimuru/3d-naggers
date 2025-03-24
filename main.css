@@ -28,3 +28,28 @@
 
     transform: translateX(-50%) translateY(-50%);
 }
+
+#abilities {
+    position: absolute;
+    top: 85%;
+    left: 50%;
+
+    transform: translateX(-50%) translateY(-50%);
+
+    height: fit-content;
+    width: fit-content;
+    display: flex;
+
+    gap: 2lvh;
+}
+
+.ability {
+    width: 5lvw;
+    aspect-ratio: 1;
+
+    background-color: #fff;
+
+    text-align: center;
+    align-content: center;
+    font-size: 3lvh;
+}
