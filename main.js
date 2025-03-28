@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import * as FUNCTIONS from '/functions.mjs';
-import * as ENTITIES from '/entities.mjs';
+import * as FUNCTIONS from 'https://notrimuru.github.io/3d-naggers/functions.mjs';
+import * as ENTITIES from 'https://notrimuru.github.io/3d-naggers/entities.mjs';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color().setHex( 0x111111 );
