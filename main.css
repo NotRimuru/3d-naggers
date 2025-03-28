@@ -71,8 +71,27 @@ body, html {
     gap: 2lvh;
 }
 
+.ability-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1lvh;
+}
+
+.ability-keybind {
+    width: 3lvh;
+    aspect-ratio: 1;
+    background-color: #fff;
+
+    align-self: center;
+
+    text-align: center;
+    align-content: center;
+
+    font-size: 2.5lvh;
+}
+
 .ability {
-    width: 3lvw;
+    width: 7lvh;
     aspect-ratio: 1;
 
     background-color: #fff;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import * as FUNCTIONS from '/3d-naggers/functions.mjs';
-import * as ENTITIES from '/3d-naggers/entities.mjs';
+import * as FUNCTIONS from './functions.mjs';
+import * as ENTITIES from './entities.mjs';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color().setHex( 0x111111 );
@@ -17,7 +17,6 @@ const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
 const ground = new THREE.Mesh( groundGeomatry, groundMaterial );
 scene.add( ground );
 ground.rotation.x = -90 * ( Math.PI / 180 );
-ground.position.y = -1;
 ground.name = "ground";
 
 const playerGeometry = new THREE.BoxGeometry( .3, .3, .3 );
@@ -28,15 +27,17 @@ camera.add( playerHitbox );
 ENTITIES.player.instance = camera;
 ENTITIES.player.hitbox = playerHitbox;
 
-let keyboard = {};
+camera.position.y = 1;
 
+let keyboard = {};
 
 let damageCooldown = false;
 window.onkeydown = (e) => {
     const key = e.key.toLowerCase();
     keyboard[key] = true;
-
-    if( key == 'g' ) FUNCTIONS.createEnemy( scene );
+    
+    if( !isNaN( Number( key ) ) ) FUNCTIONS.weaponSwitch( Number(key) );
+    else if( key == 'g' ) FUNCTIONS.createEnemy( scene );
     else if( key == 'r' && !damageCooldown ) {
         damageCooldown = true;
 
@@ -53,9 +54,9 @@ window.onkeyup = (e) => {
     keyboard[key] = false;
 }
 
-
 const clock = new THREE.Clock();
 let delta = 0;
+
 let jump = false;
 let jumpVelocity = 0;
 
@@ -64,7 +65,7 @@ let dashVelocity = 0;
 let dashCooldown = false;
 
 const movementHelper = new THREE.Mesh(new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-movementHelper.position.set( camera.position.x, camera.position.y, camera.position.z )
+movementHelper.position.set( camera.position.x, camera.position.y, camera.position.z );
 
 function movement() {
     movementHelper.attach( camera );
@@ -91,10 +92,10 @@ function movement() {
         movementHelper.position.y += jumpVelocity * delta;
 
         jumpVelocity -= 9.8 * 2 * delta;
-        if (movementHelper.position.y <= 0) {
+        if (movementHelper.position.y <= 1) {
             jump = false;
             jumpVelocity = 0;
-            movementHelper.position.y = 0;
+            movementHelper.position.y = 1;
         }
     }
 
@@ -129,12 +130,6 @@ function movement() {
 
     scene.attach( camera );
 
-}
-
-function spawnEnemies() {
-    setInterval(() => {
-        createEnemy();
-    }, 1000);
 }
 
 function animate() {

@@ -1,5 +1,19 @@
 import * as THREE from 'three';
-import * as ENTITIES from "/3d-naggers/entities.mjs";
+import * as ENTITIES from "./entities.mjs";
+
+export function weaponSwitch( key ) {
+    if( key < 1 || key > 2 ) return;
+    ENTITIES.player.weapon = key;
+
+    if( key == 1 ) {
+        ENTITIES.player.bullet.color = 0xffff00;
+        ENTITIES.player.damage -= 4;
+    }
+    else {
+        ENTITIES.player.bullet.color = 0xff8800;
+        ENTITIES.player.damage += 4;
+    }
+}
 
 export function damage() {
     const damage = ENTITIES.player.damage;
@@ -43,6 +57,8 @@ function createBullet( size, color, yOffset, instance, scene ) {
     bullet.position.set( instance.position.x, instance.position.y - yOffset, instance.position.z );
     bullet.rotation.set( instance.rotation.x, instance.rotation.y, instance.rotation.z );
 
+    bullet.translateZ( yOffset );
+
     return bullet;
 }
 
@@ -62,9 +78,19 @@ export function shoot( shooter, scene ) {
         damage : shooter.damage, 
         speed : 5
     });
+
+    if( shooter.name == "player" ) {
+        const bullet = bulletArray[ bulletArray.length - 1 ];
+        bullet.type = shooter.weapon;
+        bullet.yVelocity = 7;
+        bullet.speed = -5;
+    }
 }
 
-function enemyBullet( bullet, array ) {
+function enemyBullet( bullet, array, delta ) {
+    bullet.instance.translateZ( bullet.speed * delta );
+    bullet.distance += bullet.speed * delta;
+
     if( detectCollision( bullet.instance, ENTITIES.player.hitbox ) ){
         deleteEntity( bullet, array );
 
@@ -74,7 +100,62 @@ function enemyBullet( bullet, array ) {
     }
 }
 
-function playerBullet( bullet, array ) {
+function normalBullet( bullet, delta ) {
+    bullet.instance.translateZ( bullet.speed * delta );
+    bullet.distance += bullet.speed * delta;
+}
+
+function explosion( position ) {
+    const explosionMat = new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 1 });
+    const explosionGeo = new THREE.CircleGeometry( 1 );
+    const explosionMesh = new THREE.Mesh( explosionMat, explosionGeo );
+    scene.add( explosionMesh );
+    explosionMesh.position.set( position.x, position.y, position.z );
+
+    let size = 0.1;
+    setInterval(() => {
+        explosionMesh.geometry = new THREE.CircleGeometry( size );
+        
+        size *= 1.1;
+
+        if( size >= 1 ) {
+            explosionMesh.removeFromParent();
+            return;
+        }
+
+        for( const enemy of ENTITIES.enemies ) {
+            if( !detectCollision( explosionMesh, enemy.instance ) )continue;
+            explosionMesh.removeFromParent();
+
+            enemy.health -= ENTITIES.player.damage;
+            if( enemy.health > 0 ) break;
+
+            deleteEntity( enemy, ENTITIES.enemies );
+
+            return;
+        }
+
+    }, 10);
+}
+
+function explosiveBullet( bullet, delta ) {
+    console.log( bullet.instance.position.y )
+
+    bullet.instance.position.y += bullet.yVelocity * delta;
+    bullet.yVelocity -= 9.8 * 2 * delta;
+
+    bullet.instance.translateZ( bullet.speed * delta );
+    bullet.distance += bullet.speed * delta;
+
+    if (bullet.instance.position.y <= 0) {
+        explosion( bullet.position );
+        deleteEntity( bullet, ENTITIES.playerBullets );
+    }
+}
+
+function playerBullet( bullet, array, delta ) {
+    bullet.type == 1 ? normalBullet( bullet, delta ) : explosiveBullet( bullet, delta );
+
     for( const enemy of ENTITIES.enemies ) {
         if( !detectCollision( bullet.instance, enemy.instance ) )continue;
 
@@ -90,17 +171,12 @@ function playerBullet( bullet, array ) {
 }
 
 export function bulletHandler( bullet, array, scene, delta ) {
-    if( bullet.name == "player" ) delta *= -1;
-
-    bullet.instance.translateZ( bullet.speed * delta );
-    bullet.distance += bullet.speed * delta;
-    
     if( detectCollision( bullet.instance, scene.getObjectByName( "ground" ) ) ) {
         deleteEntity( bullet, array );
         return;
     }
 
-    if( bullet.name == "player" ) playerBullet( bullet, array ); else enemyBullet( bullet, array );
+    if( bullet.name == "player" ) playerBullet( bullet, array, delta ); else enemyBullet( bullet, array, delta );
     
     if( bullet.distance >= 20 ) deleteEntity( bullet, array );
 }
@@ -114,12 +190,9 @@ export function createEnemy( scene ) {
     enemy.instance = enemyInstance;
     scene.add( enemyInstance );
 
-    enemyInstance.position.x = Math.floor( (Math.random() * 6) - 3 );
-    enemyInstance.position.z = Math.floor( (Math.random() * 6) - 3 );
+    enemyInstance.position.set( Math.floor( (Math.random() * 6) - 3 ), 1, Math.floor( (Math.random() * 6) - 3 ) )
 
-    if(enemy.name == "air"){
-        enemyInstance.position.y = 1;
-    }
+    if(enemy.name == "air") enemyInstance.position.y = 2;
 
     ENTITIES.enemies.push( enemy );
 }
