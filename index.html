@@ -3,11 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<title>Unnamed shooternpx http-server</title>
-		<style>
-			body { margin: 0; background-color: #111; }
-		</style>
-		<link rel = "stylesheet" href="main.css">
-
+		
 		<script type="importmap">
 			{
 				"imports": {
@@ -15,14 +11,32 @@
 					"three/addons/": "https://unpkg.com/three@0.174.0/examples/jsm/"
 				}
 			}
-		  </script>
+		</script>
+
+		<link rel = "stylesheet" href="main.css">
 	</head>
-	<body>
-		<div id = "healthbar">
-			<div id = "health"></div>
-		</div>
+	<body class = "fisheye">
+
+		<div class = "color"></div>
+		<div class = "scanlines"></div>
+
+		<svg style = "position: absolute;">
+			<defs>
+				<filter id="SphereMapTest" filterUnits="objectBoundingBox" x="-0.285" y="-1.2" width="1.6" height="3.5">
+					<feImage id="mapa" result="Map" xlink:href="sphere_wide.png"/>
+					<feDisplacementMap id="despMap" in="SourceGraphic" in2="map" scale="100" xChannelSelector="R" yChannelSelector="G" />
+				</filter>
+			</defs>
+		</svg>
 
 		<div id = "crosshair"></div>
+
+		<div id = "healthbar-container">
+			<div id = "health-text"></div>
+			<div id = "healthbar">
+				<div id = "health"></div>
+			</div>
+		</div>
 
 		<div id = "abilities">
 			<div id = "dash" class = "ability">Dash</div>

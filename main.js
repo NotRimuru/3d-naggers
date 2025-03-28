@@ -1,95 +1,51 @@
 import * as THREE from 'three';
+import * as FUNCTIONS from '/functions.mjs';
+import * as ENTITIES from '/entities.mjs';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.02, 30 );
+scene.background = new THREE.Color().setHex( 0x111111 );
+
+const camera = new THREE.PerspectiveCamera( 75, 1350 / 796, 0.02, 30 );
 
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setSize( 1350, 796 );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
-const groundGeomatry = new THREE.PlaneGeometry( 1000, 1000 );
+const groundGeomatry = new THREE.BoxGeometry( 1000, 1000 );
 const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
 const ground = new THREE.Mesh( groundGeomatry, groundMaterial );
 scene.add( ground );
 ground.rotation.x = -90 * ( Math.PI / 180 );
-ground.position.y = -0.5
+ground.position.y = -1;
+ground.name = "ground";
 
 const playerGeometry = new THREE.BoxGeometry( .3, .3, .3 );
 const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent : true, opacity : 0 });
 const playerHitbox = new THREE.Mesh( playerGeometry, playerMaterial );
-
 camera.add( playerHitbox );
 
-let player = {
-    name : "player",
-    instance : camera,
-    hitbox : playerHitbox,
-    health : 10,
-    maxhealth: 10,
-    stamina : 100,
-    shootTimeout : false,
-    bullet : {
-        size : 0.1,
-        color : 0xffff00,
-        yOffset : 0.1
-    }
-}
-
-const enemyTypes = [
-    {   
-        name : "tank",
-        instance : null,
-        health : 5, 
-        speed : 1,
-        cameraRotation : "y-only",
-        movement : "only-horizontal",
-        attackType : "melee",
-        size : 0.5,
-        color : 0x00ff00,
-        attackCooldown : false
-    },
-
-    {
-        name : "speedy",
-        instance : null,
-        health : 1, 
-        speed : 3,
-        cameraRotation : "y-only",
-        movement : "only-horizontal",
-        attackType : "melee",
-        size : 0.2,
-        color : 0x00ffff,
-        attackCooldown : false
-    },
-    
-    {
-        name : "air",
-        instance : null,
-        health : 2, 
-        speed : 2,
-        cameraRotation : "non-restricted",
-        movement : "only-horizontal",
-        attackType : "shooting",
-        size : 0.3,
-        color : 0xff0000,
-        attackCooldown : false,
-        bullet : {
-            size : 0.1,
-            color : 0xAA0000,
-            yOffset : 0
-        }
-    }
-]
+ENTITIES.player.instance = camera;
+ENTITIES.player.hitbox = playerHitbox;
 
 let keyboard = {};
 
 
+let damageCooldown = false;
 window.onkeydown = (e) => {
     const key = e.key.toLowerCase();
     keyboard[key] = true;
 
-    if( key == 'g' ) spawnEnemies();
+    if( key == 'g' ) FUNCTIONS.createEnemy( scene );
+    else if( key == 'r' && !damageCooldown ) {
+        damageCooldown = true;
+
+        FUNCTIONS.damage();
+
+        setTimeout(() => {
+            damageCooldown = false;
+        }, 10000);
+    } 
 };
 
 window.onkeyup = (e) => {
@@ -97,11 +53,6 @@ window.onkeyup = (e) => {
     keyboard[key] = false;
 }
 
-window.onresize = () => {
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-}
 
 const clock = new THREE.Clock();
 let delta = 0;
@@ -180,173 +131,29 @@ function movement() {
 
 }
 
-let enemies = new Array();
-function createEnemy() {
-    const enemy = JSON.parse(JSON.stringify( enemyTypes[ Math.floor( Math.random() * enemyTypes.length )  ] ));
-
-    const enemyGeometry = new THREE.BoxGeometry( enemy.size, enemy.size, enemy.size );
-    const enemyMaterial = new THREE.MeshBasicMaterial({ color : enemy.color });
-    const enemyInstance = new THREE.Mesh( enemyGeometry, enemyMaterial );
-    enemy.instance = enemyInstance;
-    scene.add( enemyInstance );
-
-    enemyInstance.position.x = Math.floor( (Math.random() * 6) - 3 );
-    enemyInstance.position.z = Math.floor( (Math.random() * 6) - 3 );
-
-    if(enemy.name == "air"){
-        enemyInstance.position.y = 1;
-    }
-
-    enemies.push( enemy );
-}
-
 function spawnEnemies() {
     setInterval(() => {
         createEnemy();
     }, 1000);
 }
 
-function enemyHandler() {
-    for(const enemy of enemies) {
-        
-        enemy.instance.rotation.set( 0, 0, 0 );
-        enemy.instance.rotation.y = Math.atan2( ( camera.position.x - enemy.instance.position.x ), ( camera.position.z - enemy.instance.position.z ) );
-
-        if( enemy.instance.position.distanceTo( camera.position ) > 3 || enemy.name != "air" ) enemy.instance.translateZ( enemy.speed * delta );
-
-        if( enemy.cameraRotation == "non-restricted" ) enemy.instance.lookAt( camera.position );
-
-        if( enemy.attackCooldown == false ) {
-            enemy.attackCooldown = true;
-            setTimeout( () => {
-                enemy.attackCooldown = false;
-            }, 3000);
-
-            if( enemy.name == "air" ) shoot( enemy );
-            else {
-
-                const enemyBB = new THREE.Box3().setFromObject( enemy.instance );
-                const playerBB = new THREE.Box3().setFromObject( player.hitbox );
-                const collision = enemyBB.intersectsBox( playerBB );
-
-                if( !collision ) continue;
-                
-                player.health -= 1;
-                console.log( player.health );
-                if( player.health > 0 ) continue;
-                
-                alert("you lost!");
-            }
-        }
-    }
-}
-
-function createBullet(size, color, yOffset, instance) {
-    const bulletGeometry = new THREE.BoxGeometry( size, size, size );
-    const bulletMaterial = new THREE.MeshBasicMaterial( { color: color } );
-    const bullet = new THREE.Mesh( bulletGeometry, bulletMaterial );
-    scene.add( bullet );
-
-    bullet.position.set( instance.position.x, instance.position.y - yOffset, instance.position.z );
-    bullet.rotation.set( instance.rotation.x, instance.rotation.y, instance.rotation.z );
-
-    return bullet;
-}
-
-let playerBullets = new Array();
-let enemyBullets = new Array();
-function shoot( shooter ) {
-    if( shooter.shootTimeout ) return;
-    shooter.shootTimeout = true;
-
-    setTimeout(() => {
-        shooter.shootTimeout = false;
-    }, 200);
-    
-    let bulletArr;
-    if( shooter.name == "player" ) bulletArr = playerBullets;
-    else bulletArr = enemyBullets;
-
-    bulletArr.push({
-        instance : createBullet( shooter.bullet.size , shooter.bullet.color, shooter.bullet.yOffset, shooter.instance ),
-        distance : 0, 
-        damage : 1, 
-        speed : 5
-    });
-}
-
-function deleteEntity( entity, arr ) {
-
-    entity.instance.removeFromParent();
-    arr.splice(arr.indexOf( entity ), 1);
-}
-
-function detectCollision( entity1, entity2 ) {
-    const entity1BB = new THREE.Box3().setFromObject( entity1 );
-    const entity2BB = new THREE.Box3().setFromObject( entity2 );
-    return entity1BB.intersectsBox( entity2BB );
-}
-
-function playerBulletHandler( bullet ) {
-    bullet.instance.translateZ( -bullet.speed * delta );
-    bullet.distance += bullet.speed * delta;
-
-    for( const enemy of enemies ) {
-        if( !detectCollision( bullet.instance, enemy.instance ) && !detectCollision( bullet.instance, ground ) )continue;
-
-        deleteEntity( bullet, playerBullets );
-
-        enemy.health -= bullet.damage;
-        if( enemy.health > 0 ) break;
-
-        deleteEntity( enemy, enemies );
-
-        break;
-    }   
-
-    if( bullet.distance >= 20 ) deleteEntity( bullet, playerBullets );
-}
-
-function enemyBulletHandler( bullet ) {
-    bullet.instance.translateZ( bullet.speed * delta );
-    bullet.distance += bullet.speed * delta;
-        
-    if( detectCollision( bullet.instance, player.hitbox ) ){
-        deleteEntity( bullet, enemyBullets );
-
-        player.health -= bullet.damage;
-        console.log( player.health );
-
-        if( player.health <= 0 ){
-            alert("You lost!!!");
-            location.reload();
-        }
-    }
-
-    if( bullet.distance >= 20 ) deleteEntity( bullet, enemyBullets );
-}
-
-function updateHealth() {
-
-    const health = document.getElementById("health");
-    health.style.width = `${player.health * 100 / player.maxhealth}%`;
-
-}
-
 function animate() {
     delta = clock.getDelta();
 
-    if( keyboard["e"] == true ) shoot( player );
+    if( keyboard["e"] == true ) FUNCTIONS.shoot( ENTITIES.player, scene );
 
     movement();
 
-    for(const bullet of playerBullets) playerBulletHandler(bullet);
-    for(const bullet of enemyBullets) enemyBulletHandler(bullet);
+    for( const bullet of ENTITIES.playerBullets ) FUNCTIONS.bulletHandler( bullet, ENTITIES.playerBullets, scene, delta );
+    for( const bullet of ENTITIES.enemyBullets )  FUNCTIONS.bulletHandler( bullet, ENTITIES.enemyBullets, scene, delta );
 
-    enemyHandler();
+    FUNCTIONS.enemyHandler( scene, delta );
 
-    updateHealth();
-    
+    const healthDiv = document.getElementById( "health" );
+    healthDiv.style.width = `${ ENTITIES.player.health * 100 / ENTITIES.player.maxhealth }%`;
+    const healthTextDiv = document.getElementById( "health-text" );
+    healthTextDiv.innerHTML = `${ ENTITIES.player.health } / ${ ENTITIES.player.maxhealth }`;
+
 	renderer.render( scene, camera );
 }
 
