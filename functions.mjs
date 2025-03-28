@@ -70,7 +70,7 @@ function enemyBullet( bullet, array ) {
 
         ENTITIES.player.health -= bullet.damage;
 
-        if( player.health <= 0 ) location.reload();
+        if( ENTITIES.player.health <= 0 ) location.reload();
     }
 }
 
