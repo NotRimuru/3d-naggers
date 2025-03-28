@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import * as ENTITIES from "/entities";
+import * as ENTITIES from "entities.mjs";
 
 export function damage() {
     const damage = ENTITIES.player.damage;
